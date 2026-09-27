@@ -88,6 +88,86 @@
     button.replay:hover {
       background: rgba(214, 235, 255, 0.12);
     }
+    .silver {
+      margin: 0 0 1.5rem;
+      text-align: center;
+    }
+    .silver h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: var(--pale);
+    }
+    .silver p {
+      margin: 0;
+    }
+    .silver-spot {
+      margin-top: 0.35rem;
+      font-size: 1.45rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.01em;
+      color: var(--white);
+      opacity: 1;
+    }
+    .silver-spot .unit {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--pale);
+    }
+    .silver-meta {
+      margin-top: 0.2rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .chart-card {
+      background: rgba(5, 16, 32, 0.4);
+      border: 1px solid rgba(214, 235, 255, 0.22);
+      border-radius: 0.75rem;
+      padding: 0.35rem 0.2rem 0.45rem;
+    }
+    .chart-message {
+      padding: 2.4rem 0.75rem;
+      font-size: 0.9rem;
+    }
+    #silver-chart {
+      width: 100%;
+      height: auto;
+      display: block;
+      touch-action: pan-y;
+      user-select: none;
+    }
+    #silver-chart.is-hidden {
+      display: none;
+    }
+    .silver-readout {
+      min-height: 1.3rem;
+      margin: 0.15rem 0.4rem 0.1rem;
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .silver-note {
+      margin-top: 0.65rem;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      opacity: 0.85;
+    }
+    .silver-note a {
+      color: var(--pale);
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
     .buttons {
       display: flex;
       flex-direction: column;
@@ -116,6 +196,10 @@
     a.button.secondary:hover {
       background: rgba(214, 235, 255, 0.12);
     }
+    @media (max-width: 540px) {
+      body { padding: 1rem 0.75rem; }
+      main { padding: 1.6rem 1rem; }
+    }
   </style>
 </head>
 <body>
@@ -136,6 +220,30 @@
       <p class="video-caption">DHC-2 Beaver on floats — water landing (YouTube). Use Replay anytime.</p>
       <button type="button" class="replay" id="replay-btn">Replay landing</button>
     </div>
+    <section class="silver" aria-labelledby="silver-heading">
+      <h2 id="silver-heading">Silver — weekly</h2>
+      <p class="silver-spot" id="silver-spot">Loading spot price…</p>
+      <p class="silver-meta" id="silver-meta"></p>
+      <div class="chart-card" id="silver-chart-wrap">
+        <p class="chart-message" id="silver-chart-message">Loading the last 7 days…</p>
+        <svg id="silver-chart" class="is-hidden" role="img" aria-labelledby="silver-heading"></svg>
+        <p class="silver-readout" id="silver-readout" hidden></p>
+      </div>
+      <p class="silver-note" id="silver-note">
+        USD per troy ounce, about the last 7 days. Daily points are delayed reference rates from
+        <a href="https://frankfurter.dev/currencies/xag/usd/" target="_blank" rel="noopener noreferrer">Frankfurter</a>;
+        the axis is scaled to this week’s range. The spot price is a near-realtime indicative quote from
+        <a href="https://gold-api.com/" target="_blank" rel="noopener noreferrer">gold-api.com</a>,
+        not tick-by-tick.
+      </p>
+      <table class="sr-only" id="silver-table">
+        <caption>Daily silver reference rates in USD per troy ounce</caption>
+        <thead>
+          <tr><th scope="col">Date</th><th scope="col">USD per oz</th></tr>
+        </thead>
+        <tbody id="silver-table-body"></tbody>
+      </table>
+    </section>
     <p>Open a de Havilland Canada DHC-2 Beaver page:</p>
     <div class="buttons">
       <a class="button" href="https://dhc-2.com/current_cover_page.htm" target="_blank" rel="noopener noreferrer">DHC-2.com — cover page</a>
@@ -157,6 +265,464 @@
       btn.addEventListener("click", function () {
         iframe.src = base + "&t=" + Date.now();
       });
+    })();
+  </script>
+  <script>
+    (function () {
+      var SVG_NS = "http://www.w3.org/2000/svg";
+      var HISTORY_URL = "https://api.frankfurter.dev/v2/rates";
+      var SPOT_URL = "https://api.gold-api.com/price/XAG";
+      var spotEl = document.getElementById("silver-spot");
+      var metaEl = document.getElementById("silver-meta");
+      var messageEl = document.getElementById("silver-chart-message");
+      var readoutEl = document.getElementById("silver-readout");
+      var wrapEl = document.getElementById("silver-chart-wrap");
+      var svg = document.getElementById("silver-chart");
+      var tableBody = document.getElementById("silver-table-body");
+      var state = { points: [], spot: null, spotStatus: "loading", selected: -1, error: "" };
+      var lastDrawKey = "";
+      var lastWidth = 0;
+
+      function isoDaysAgo(days) {
+        var d = new Date();
+        d.setUTCDate(d.getUTCDate() - days);
+        return d.toISOString().slice(0, 10);
+      }
+
+      function money(value, digits) {
+        return "$" + Number(value).toLocaleString("en-CA", {
+          minimumFractionDigits: digits,
+          maximumFractionDigits: digits
+        });
+      }
+
+      function signedMoney(value, digits) {
+        var sign = value > 0 ? "+" : value < 0 ? "-" : "";
+        return sign + money(Math.abs(value), digits);
+      }
+
+      function signedPct(value) {
+        var sign = value > 0 ? "+" : value < 0 ? "-" : "";
+        return sign + Math.abs(value).toFixed(1) + "%";
+      }
+
+      function formatDay(iso, withWeekday) {
+        var parts = iso.split("-");
+        var dt = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
+        var opts = { month: "short", day: "numeric", timeZone: "UTC" };
+        if (withWeekday) opts.weekday = "short";
+        return new Intl.DateTimeFormat("en-CA", opts).format(dt);
+      }
+
+      function formatClock(iso) {
+        var dt = new Date(iso);
+        if (Number.isNaN(dt.getTime())) return "";
+        return new Intl.DateTimeFormat("en-CA", {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "UTC",
+          hourCycle: "h23"
+        }).format(dt) + " UTC";
+      }
+
+      function fetchJson(url, timeoutMs) {
+        var ctrl = new AbortController();
+        var timer = setTimeout(function () { ctrl.abort(); }, timeoutMs);
+        return fetch(url, { signal: ctrl.signal, cache: "no-store" }).then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        }).finally(function () {
+          clearTimeout(timer);
+        });
+      }
+
+      function svgEl(name, attrs, text) {
+        var node = document.createElementNS(SVG_NS, name);
+        if (attrs) {
+          Object.keys(attrs).forEach(function (key) {
+            node.setAttribute(key, attrs[key]);
+          });
+        }
+        if (text != null) node.textContent = text;
+        return node;
+      }
+
+      function showMessage(text) {
+        messageEl.hidden = false;
+        messageEl.textContent = text;
+        svg.classList.add("is-hidden");
+        readoutEl.hidden = true;
+        lastDrawKey = "";
+      }
+
+      function updateSummary() {
+        var points = state.points;
+        if (state.spotStatus === "ok" && state.spot && Number.isFinite(state.spot.price)) {
+          spotEl.textContent = "";
+          spotEl.appendChild(document.createTextNode(money(state.spot.price, 3) + " "));
+          var unit = document.createElement("span");
+          unit.className = "unit";
+          unit.textContent = "/ oz spot";
+          spotEl.appendChild(unit);
+        } else if (state.spotStatus === "loading") {
+          spotEl.textContent = "Loading spot price…";
+        } else if (points.length) {
+          spotEl.textContent = money(points[points.length - 1].rate, 2) + " latest daily";
+        } else {
+          spotEl.textContent = "Spot price unavailable";
+        }
+
+        if (points.length >= 2) {
+          var first = points[0];
+          var last = points[points.length - 1];
+          var change = last.rate - first.rate;
+          var pct = (change / first.rate) * 100;
+          var bits = [
+            formatDay(first.date, false) + " – " + formatDay(last.date, false),
+            signedMoney(change, 2) + " (" + signedPct(pct) + ")"
+          ];
+          if (state.spot && state.spot.updatedAt) {
+            var clock = formatClock(state.spot.updatedAt);
+            if (clock) bits.push("spot " + clock);
+          }
+          metaEl.textContent = bits.join(" · ");
+        } else if (state.spot && state.spot.updatedAt) {
+          metaEl.textContent = "Spot updated " + formatClock(state.spot.updatedAt);
+        } else {
+          metaEl.textContent = "";
+        }
+      }
+
+      function fillTable() {
+        tableBody.textContent = "";
+        state.points.forEach(function (point) {
+          var row = document.createElement("tr");
+          var dateCell = document.createElement("td");
+          var priceCell = document.createElement("td");
+          dateCell.textContent = point.date;
+          priceCell.textContent = money(point.rate, 3);
+          row.appendChild(dateCell);
+          row.appendChild(priceCell);
+          tableBody.appendChild(row);
+        });
+      }
+
+      function axisDecimals(span) {
+        if (span < 0.2) return 3;
+        return 2;
+      }
+
+      function render() {
+        var points = state.points;
+        if (points.length < 2) {
+          if (state.error) showMessage(state.error);
+          updateSummary();
+          return;
+        }
+
+        var width = Math.max(260, Math.floor(wrapEl.clientWidth));
+        if (!width) return;
+        var height = width < 480 ? 252 : 286;
+        var spotKey = state.spot ? state.spot.price.toFixed(3) : "none";
+        var drawKey = width + "x" + height + "|" + spotKey + "|" + points.map(function (p) {
+          return p.date + ":" + p.rate;
+        }).join(",");
+        if (drawKey === lastDrawKey) {
+          updateSummary();
+          return;
+        }
+        lastDrawKey = drawKey;
+
+        var rates = points.map(function (p) { return p.rate; });
+        var min = Math.min.apply(null, rates);
+        var max = Math.max.apply(null, rates);
+        if (state.spot && Number.isFinite(state.spot.price)) {
+          min = Math.min(min, state.spot.price);
+          max = Math.max(max, state.spot.price);
+        }
+        var span = max - min || 1;
+        var pad = Math.max(span * 0.18, 0.05);
+        var yMin = min - pad;
+        var yMax = max + pad;
+        var ySpan = yMax - yMin;
+        var digits = axisDecimals(span);
+
+        var left = width < 480 ? 48 : 56;
+        var right = 12;
+        var top = 16;
+        var bottom = width < 480 ? 36 : 32;
+        var plotW = width - left - right;
+        var plotH = height - top - bottom;
+        var slot = plotW / Math.max(1, points.length - 1);
+        var shortLabels = slot < 58;
+
+        function xAt(index) {
+          if (points.length === 1) return left + plotW / 2;
+          return left + (plotW * index) / (points.length - 1);
+        }
+        function yAt(value) {
+          return top + ((yMax - value) / ySpan) * plotH;
+        }
+
+        points.forEach(function (point, index) {
+          point.x = xAt(index);
+          point.y = yAt(point.rate);
+        });
+
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+        svg.setAttribute("width", String(width));
+        svg.setAttribute("height", String(height));
+        var desc = formatDay(points[0].date, false) + " to " + formatDay(points[points.length - 1].date, false) +
+          ", " + money(points[points.length - 1].rate, 2) + " per ounce on the latest daily point.";
+        svg.setAttribute("aria-label", "Silver price chart, USD per troy ounce, " + desc);
+        svg.setAttribute("data-points", String(points.length));
+
+        var defs = svgEl("defs");
+        var gradient = svgEl("linearGradient", { id: "silver-fill", x1: "0", y1: "0", x2: "0", y2: "1" });
+        gradient.appendChild(svgEl("stop", { offset: "0%", "stop-color": "#5ba3f0", "stop-opacity": "0.45" }));
+        gradient.appendChild(svgEl("stop", { offset: "100%", "stop-color": "#5ba3f0", "stop-opacity": "0.02" }));
+        defs.appendChild(gradient);
+        svg.appendChild(defs);
+
+        var tickCount = 4;
+        for (var t = 0; t < tickCount; t++) {
+          var value = yMin + (ySpan * t) / (tickCount - 1);
+          var y = yAt(value);
+          svg.appendChild(svgEl("line", {
+            x1: String(left),
+            y1: String(y),
+            x2: String(width - right),
+            y2: String(y),
+            stroke: "rgba(214,235,255,0.18)",
+            "stroke-width": "1"
+          }));
+          svg.appendChild(svgEl("text", {
+            x: String(left - 8),
+            y: String(y + 4),
+            "text-anchor": "end",
+            fill: "#d6ebff",
+            "font-size": width < 480 ? "11" : "12",
+            "font-family": "system-ui, sans-serif"
+          }, money(value, digits).replace("$", "")));
+        }
+
+        svg.appendChild(svgEl("text", {
+          x: String(left),
+          y: "12",
+          fill: "#d6ebff",
+          "font-size": "11",
+          "font-family": "system-ui, sans-serif",
+          opacity: "0.85"
+        }, "USD/oz"));
+
+        var area = "M " + points[0].x + " " + (top + plotH);
+        var line = "";
+        points.forEach(function (point, index) {
+          var cmd = index === 0 ? "M " : " L ";
+          line += cmd + point.x.toFixed(2) + " " + point.y.toFixed(2);
+          area += " L " + point.x.toFixed(2) + " " + point.y.toFixed(2);
+        });
+        area += " L " + points[points.length - 1].x + " " + (top + plotH) + " Z";
+        svg.appendChild(svgEl("path", { d: area, fill: "url(#silver-fill)" }));
+        svg.appendChild(svgEl("path", {
+          d: line,
+          fill: "none",
+          stroke: "#b9dcff",
+          "stroke-width": "2.5",
+          "stroke-linejoin": "round",
+          "stroke-linecap": "round"
+        }));
+
+        if (state.spot && Number.isFinite(state.spot.price)) {
+          var spotY = yAt(state.spot.price);
+          svg.appendChild(svgEl("line", {
+            x1: String(left),
+            y1: String(spotY),
+            x2: String(width - right),
+            y2: String(spotY),
+            stroke: "#ffe8a3",
+            "stroke-width": "1.5",
+            "stroke-dasharray": "4 4"
+          }));
+          svg.appendChild(svgEl("text", {
+            x: String(width - right),
+            y: String(Math.max(top + 12, spotY - 6)),
+            "text-anchor": "end",
+            fill: "#ffe8a3",
+            "font-size": "11",
+            "font-family": "system-ui, sans-serif"
+          }, "spot"));
+        }
+
+        points.forEach(function (point, index) {
+          var dot = svgEl("circle", {
+            cx: String(point.x),
+            cy: String(point.y),
+            r: index === state.selected ? "5" : "3.5",
+            fill: "#f5f9ff",
+            stroke: "#1e4d8c",
+            "stroke-width": "1.5"
+          });
+          dot.appendChild(svgEl("title", null, formatDay(point.date, true) + " · " + money(point.rate, 3)));
+          svg.appendChild(dot);
+
+          var label = shortLabels
+            ? String(Number(point.date.slice(8)))
+            : formatDay(point.date, false);
+          var anchor = "middle";
+          if (!shortLabels && index === 0) anchor = "start";
+          if (!shortLabels && index === points.length - 1) anchor = "end";
+          svg.appendChild(svgEl("text", {
+            x: String(point.x),
+            y: String(height - (shortLabels ? 12 : 10)),
+            "text-anchor": anchor,
+            fill: "#d6ebff",
+            "font-size": shortLabels ? "11" : "12",
+            "font-family": "system-ui, sans-serif"
+          }, label));
+        });
+
+        svg.appendChild(svgEl("circle", {
+          id: "silver-cursor",
+          r: "7",
+          fill: "none",
+          stroke: "#ffffff",
+          "stroke-width": "2",
+          "pointer-events": "none",
+          visibility: "hidden"
+        }));
+
+        messageEl.hidden = true;
+        svg.classList.remove("is-hidden");
+        readoutEl.hidden = false;
+        if (state.selected < 0 || state.selected >= points.length) {
+          state.selected = points.length - 1;
+        }
+        setReadout(state.selected, false);
+        updateSummary();
+        fillTable();
+      }
+
+      function setReadout(index, showCursor) {
+        var point = state.points[index];
+        if (!point) return;
+        state.selected = index;
+        readoutEl.textContent = formatDay(point.date, true) + " · " + money(point.rate, 3) + " daily reference";
+        var cursor = document.getElementById("silver-cursor");
+        if (!cursor || !point.x) return;
+        cursor.setAttribute("cx", String(point.x));
+        cursor.setAttribute("cy", String(point.y));
+        cursor.setAttribute("visibility", showCursor ? "visible" : "hidden");
+      }
+
+      function svgPoint(evt) {
+        var pt = svg.createSVGPoint();
+        pt.x = evt.clientX;
+        pt.y = evt.clientY;
+        var ctm = svg.getScreenCTM();
+        if (!ctm) return null;
+        return pt.matrixTransform(ctm.inverse());
+      }
+
+      function selectFromEvent(evt) {
+        if (!state.points.length || svg.classList.contains("is-hidden")) return;
+        var local = svgPoint(evt);
+        if (!local) return;
+        var best = 0;
+        var bestDist = Infinity;
+        state.points.forEach(function (point, index) {
+          var dist = Math.abs(point.x - local.x);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = index;
+          }
+        });
+        setReadout(best, true);
+      }
+
+      svg.addEventListener("pointerdown", selectFromEvent);
+      svg.addEventListener("pointermove", function (evt) {
+        if (evt.pointerType === "mouse" || evt.buttons) selectFromEvent(evt);
+      });
+      svg.addEventListener("pointerleave", function () {
+        if (state.points.length) setReadout(state.points.length - 1, false);
+      });
+
+      function loadHistory() {
+        var from = isoDaysAgo(6);
+        var to = isoDaysAgo(0);
+        var url = HISTORY_URL + "?base=xag&quotes=usd&from=" + from + "&to=" + to;
+        return fetchJson(url, 12000).then(function (rows) {
+          if (!Array.isArray(rows)) throw new Error("Unexpected silver history");
+          var byDate = {};
+          rows.forEach(function (row) {
+            var rate = Number(row && row.rate);
+            if (!row || typeof row.date !== "string" || !Number.isFinite(rate) || rate <= 0) return;
+            if (String(row.quote || "USD").toUpperCase() !== "USD") return;
+            byDate[row.date] = rate;
+          });
+          var points = Object.keys(byDate).sort().map(function (date) {
+            return { date: date, rate: byDate[date] };
+          });
+          if (points.length < 2) throw new Error("Not enough daily silver rates for a weekly chart.");
+          state.points = points;
+          state.error = "";
+          render();
+        }).catch(function () {
+          if (!state.points.length) {
+            state.error = "Weekly silver prices could not be loaded. Refresh the page to try again.";
+            showMessage(state.error);
+            updateSummary();
+          }
+        });
+      }
+
+      function loadSpot() {
+        return fetchJson(SPOT_URL, 8000).then(function (data) {
+          var price = Number(data && data.price);
+          if (!Number.isFinite(price) || price <= 0 || price > 10000) throw new Error("Bad spot");
+          if (data.symbol && String(data.symbol).toUpperCase() !== "XAG") throw new Error("Unexpected symbol");
+          state.spot = { price: price, updatedAt: data.updatedAt || "" };
+          state.spotStatus = "ok";
+          render();
+        }).catch(function () {
+          if (state.spotStatus !== "ok") {
+            state.spotStatus = "error";
+            updateSummary();
+          }
+        });
+      }
+
+      loadHistory();
+      loadSpot();
+      setInterval(loadHistory, 15 * 60 * 1000);
+      setInterval(loadSpot, 60 * 1000);
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible") loadSpot();
+      });
+
+      if (window.ResizeObserver) {
+        var queued = false;
+        var observer = new ResizeObserver(function () {
+          var width = Math.floor(wrapEl.clientWidth);
+          if (!width || width === lastWidth) return;
+          lastWidth = width;
+          if (queued) return;
+          queued = true;
+          requestAnimationFrame(function () {
+            queued = false;
+            lastDrawKey = "";
+            render();
+          });
+        });
+        observer.observe(wrapEl);
+      } else {
+        window.addEventListener("resize", function () {
+          lastDrawKey = "";
+          render();
+        });
+      }
     })();
   </script>
 </body>
