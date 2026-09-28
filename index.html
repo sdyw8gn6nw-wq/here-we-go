@@ -88,21 +88,21 @@
     button.replay:hover {
       background: rgba(214, 235, 255, 0.12);
     }
-    .silver {
+    .price-block {
       margin: 0 0 1.5rem;
       text-align: center;
     }
-    .silver h2 {
+    .price-block h2 {
       margin: 0;
       font-size: 1.25rem;
       font-weight: 700;
       letter-spacing: 0.01em;
       color: var(--pale);
     }
-    .silver p {
+    .price-block p {
       margin: 0;
     }
-    .silver-spot {
+    .price-spot {
       margin-top: 0.35rem;
       font-size: 1.45rem;
       font-weight: 700;
@@ -111,12 +111,12 @@
       color: var(--white);
       opacity: 1;
     }
-    .silver-spot .unit {
+    .price-spot .unit {
       font-size: 0.85rem;
       font-weight: 600;
       color: var(--pale);
     }
-    .silver-meta {
+    .price-meta {
       margin-top: 0.2rem;
       margin-bottom: 0.75rem;
       font-size: 0.85rem;
@@ -132,29 +132,29 @@
       padding: 2.4rem 0.75rem;
       font-size: 0.9rem;
     }
-    #silver-chart {
+    .price-chart {
       width: 100%;
       height: auto;
       display: block;
       touch-action: pan-y;
       user-select: none;
     }
-    #silver-chart.is-hidden {
+    .price-chart.is-hidden {
       display: none;
     }
-    .silver-readout {
+    .price-readout {
       min-height: 1.3rem;
       margin: 0.15rem 0.4rem 0.1rem;
       font-size: 0.85rem;
       font-variant-numeric: tabular-nums;
     }
-    .silver-note {
+    .price-note {
       margin-top: 0.65rem;
       font-size: 0.78rem;
       line-height: 1.45;
       opacity: 0.85;
     }
-    .silver-note a {
+    .price-note a {
       color: var(--pale);
     }
     .sr-only {
@@ -220,16 +220,16 @@
       <p class="video-caption">DHC-2 Beaver on floats — water landing (YouTube). Use Replay anytime.</p>
       <button type="button" class="replay" id="replay-btn">Replay landing</button>
     </div>
-    <section class="silver" aria-labelledby="silver-heading">
+    <section class="price-block" aria-labelledby="silver-heading">
       <h2 id="silver-heading">Silver — weekly</h2>
-      <p class="silver-spot" id="silver-spot">Loading spot price…</p>
-      <p class="silver-meta" id="silver-meta"></p>
+      <p class="price-spot" id="silver-spot">Loading spot price…</p>
+      <p class="price-meta" id="silver-meta"></p>
       <div class="chart-card" id="silver-chart-wrap">
         <p class="chart-message" id="silver-chart-message">Loading the last 7 days…</p>
-        <svg id="silver-chart" class="is-hidden" role="img" aria-labelledby="silver-heading"></svg>
-        <p class="silver-readout" id="silver-readout" hidden></p>
+        <svg id="silver-chart" class="price-chart is-hidden" role="img" aria-labelledby="silver-heading"></svg>
+        <p class="price-readout" id="silver-readout" hidden></p>
       </div>
-      <p class="silver-note" id="silver-note">
+      <p class="price-note" id="silver-note">
         USD per troy ounce, about the last 7 days. Daily points are delayed reference rates from
         <a href="https://frankfurter.dev/currencies/xag/usd/" target="_blank" rel="noopener noreferrer">Frankfurter</a>;
         the axis is scaled to this week’s range. The spot price is a near-realtime indicative quote from
@@ -242,6 +242,29 @@
           <tr><th scope="col">Date</th><th scope="col">USD per oz</th></tr>
         </thead>
         <tbody id="silver-table-body"></tbody>
+      </table>
+    </section>
+    <section class="price-block" aria-labelledby="tfuel-heading">
+      <h2 id="tfuel-heading">TFUEL — weekly</h2>
+      <p class="price-spot" id="tfuel-spot">Loading spot price…</p>
+      <p class="price-meta" id="tfuel-meta"></p>
+      <div class="chart-card" id="tfuel-chart-wrap">
+        <p class="chart-message" id="tfuel-chart-message">Loading the last 7 days…</p>
+        <svg id="tfuel-chart" class="price-chart is-hidden" role="img" aria-labelledby="tfuel-heading"></svg>
+        <p class="price-readout" id="tfuel-readout" hidden></p>
+      </div>
+      <p class="price-note" id="tfuel-note">
+        Theta Fuel (TFUEL) in US dollars, about the last 7 days. The line is hourly and the axis is scaled to this week’s range.
+        The spot price is a near-realtime indicative quote from
+        <a href="https://www.coingecko.com/en/coins/theta-fuel" target="_blank" rel="noopener noreferrer">CoinGecko</a>,
+        not tick-by-tick.
+      </p>
+      <table class="sr-only" id="tfuel-table">
+        <caption>Theta Fuel (TFUEL) prices in USD</caption>
+        <thead>
+          <tr><th scope="col">Time (UTC)</th><th scope="col">USD</th></tr>
+        </thead>
+        <tbody id="tfuel-table-body"></tbody>
       </table>
     </section>
     <p>Open a de Havilland Canada DHC-2 Beaver page:</p>
@@ -270,18 +293,6 @@
   <script>
     (function () {
       var SVG_NS = "http://www.w3.org/2000/svg";
-      var HISTORY_URL = "https://api.frankfurter.dev/v2/rates";
-      var SPOT_URL = "https://api.gold-api.com/price/XAG";
-      var spotEl = document.getElementById("silver-spot");
-      var metaEl = document.getElementById("silver-meta");
-      var messageEl = document.getElementById("silver-chart-message");
-      var readoutEl = document.getElementById("silver-readout");
-      var wrapEl = document.getElementById("silver-chart-wrap");
-      var svg = document.getElementById("silver-chart");
-      var tableBody = document.getElementById("silver-table-body");
-      var state = { points: [], spot: null, spotStatus: "loading", selected: -1, error: "" };
-      var lastDrawKey = "";
-      var lastWidth = 0;
 
       function isoDaysAgo(days) {
         var d = new Date();
@@ -325,6 +336,20 @@
         }).format(dt) + " UTC";
       }
 
+      function formatStamp(ms) {
+        var dt = new Date(ms);
+        if (Number.isNaN(dt.getTime())) return "";
+        return new Intl.DateTimeFormat("en-CA", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "UTC",
+          hourCycle: "h23"
+        }).format(dt) + " UTC";
+      }
+
       function fetchJson(url, timeoutMs) {
         var ctrl = new AbortController();
         var timer = setTimeout(function () { ctrl.abort(); }, timeoutMs);
@@ -347,382 +372,543 @@
         return node;
       }
 
-      function showMessage(text) {
-        messageEl.hidden = false;
-        messageEl.textContent = text;
-        svg.classList.add("is-hidden");
-        readoutEl.hidden = true;
-        lastDrawKey = "";
-      }
+      function mountChart(cfg) {
+        var spotEl = document.getElementById(cfg.ids.spot);
+        var metaEl = document.getElementById(cfg.ids.meta);
+        var messageEl = document.getElementById(cfg.ids.message);
+        var readoutEl = document.getElementById(cfg.ids.readout);
+        var wrapEl = document.getElementById(cfg.ids.wrap);
+        var svg = document.getElementById(cfg.ids.svg);
+        var tableBody = document.getElementById(cfg.ids.table);
+        if (!spotEl || !svg || !wrapEl) return;
 
-      function updateSummary() {
-        var points = state.points;
-        if (state.spotStatus === "ok" && state.spot && Number.isFinite(state.spot.price)) {
-          spotEl.textContent = "";
-          spotEl.appendChild(document.createTextNode(money(state.spot.price, 3) + " "));
-          var unit = document.createElement("span");
-          unit.className = "unit";
-          unit.textContent = "/ oz spot";
-          spotEl.appendChild(unit);
-        } else if (state.spotStatus === "loading") {
-          spotEl.textContent = "Loading spot price…";
-        } else if (points.length) {
-          spotEl.textContent = money(points[points.length - 1].rate, 2) + " latest daily";
-        } else {
-          spotEl.textContent = "Spot price unavailable";
+        var state = { points: [], spot: null, spotStatus: "loading", selected: -1, error: "" };
+        var lastDrawKey = "";
+        var lastWidth = 0;
+
+        function showMessage(text) {
+          messageEl.hidden = false;
+          messageEl.textContent = text;
+          svg.classList.add("is-hidden");
+          readoutEl.hidden = true;
+          lastDrawKey = "";
         }
 
-        if (points.length >= 2) {
-          var first = points[0];
-          var last = points[points.length - 1];
-          var change = last.rate - first.rate;
-          var pct = (change / first.rate) * 100;
-          var bits = [
-            formatDay(first.date, false) + " – " + formatDay(last.date, false),
-            signedMoney(change, 2) + " (" + signedPct(pct) + ")"
-          ];
-          if (state.spot && state.spot.updatedAt) {
-            var clock = formatClock(state.spot.updatedAt);
-            if (clock) bits.push("spot " + clock);
+        function updateSummary() {
+          var points = state.points;
+          var digits = cfg.digits(points);
+          if (state.spotStatus === "ok" && state.spot && Number.isFinite(state.spot.price)) {
+            spotEl.textContent = "";
+            spotEl.appendChild(document.createTextNode(money(state.spot.price, digits) + " "));
+            var unit = document.createElement("span");
+            unit.className = "unit";
+            unit.textContent = cfg.unit;
+            spotEl.appendChild(unit);
+          } else if (state.spotStatus === "loading") {
+            spotEl.textContent = "Loading spot price…";
+          } else if (points.length) {
+            spotEl.textContent = money(points[points.length - 1].rate, digits) + " " + cfg.fallbackUnit;
+          } else {
+            spotEl.textContent = "Spot price unavailable";
           }
-          metaEl.textContent = bits.join(" · ");
-        } else if (state.spot && state.spot.updatedAt) {
-          metaEl.textContent = "Spot updated " + formatClock(state.spot.updatedAt);
-        } else {
-          metaEl.textContent = "";
-        }
-      }
 
-      function fillTable() {
-        tableBody.textContent = "";
-        state.points.forEach(function (point) {
-          var row = document.createElement("tr");
-          var dateCell = document.createElement("td");
-          var priceCell = document.createElement("td");
-          dateCell.textContent = point.date;
-          priceCell.textContent = money(point.rate, 3);
-          row.appendChild(dateCell);
-          row.appendChild(priceCell);
-          tableBody.appendChild(row);
-        });
-      }
-
-      function axisDecimals(span) {
-        if (span < 0.2) return 3;
-        return 2;
-      }
-
-      function render() {
-        var points = state.points;
-        if (points.length < 2) {
-          if (state.error) showMessage(state.error);
-          updateSummary();
-          return;
+          if (points.length >= 2) {
+            var first = points[0];
+            var last = points[points.length - 1];
+            var change = last.rate - first.rate;
+            var pct = first.rate ? (change / first.rate) * 100 : 0;
+            var bits = [
+              formatDay(first.date, false) + " – " + formatDay(last.date, false),
+              signedMoney(change, digits) + " (" + signedPct(pct) + ")"
+            ];
+            if (state.spot && state.spot.updatedAt) {
+              var clock = formatClock(state.spot.updatedAt);
+              if (clock) bits.push("spot " + clock);
+            }
+            metaEl.textContent = bits.join(" · ");
+          } else if (state.spot && state.spot.updatedAt) {
+            metaEl.textContent = "Spot updated " + formatClock(state.spot.updatedAt);
+          } else {
+            metaEl.textContent = "";
+          }
         }
 
-        var width = Math.max(260, Math.floor(wrapEl.clientWidth));
-        if (!width) return;
-        var height = width < 480 ? 252 : 286;
-        var spotKey = state.spot ? state.spot.price.toFixed(3) : "none";
-        var drawKey = width + "x" + height + "|" + spotKey + "|" + points.map(function (p) {
-          return p.date + ":" + p.rate;
-        }).join(",");
-        if (drawKey === lastDrawKey) {
-          updateSummary();
-          return;
-        }
-        lastDrawKey = drawKey;
-
-        var rates = points.map(function (p) { return p.rate; });
-        var min = Math.min.apply(null, rates);
-        var max = Math.max.apply(null, rates);
-        if (state.spot && Number.isFinite(state.spot.price)) {
-          min = Math.min(min, state.spot.price);
-          max = Math.max(max, state.spot.price);
-        }
-        var span = max - min || 1;
-        var pad = Math.max(span * 0.18, 0.05);
-        var yMin = min - pad;
-        var yMax = max + pad;
-        var ySpan = yMax - yMin;
-        var digits = axisDecimals(span);
-
-        var left = width < 480 ? 48 : 56;
-        var right = 12;
-        var top = 16;
-        var bottom = width < 480 ? 36 : 32;
-        var plotW = width - left - right;
-        var plotH = height - top - bottom;
-        var slot = plotW / Math.max(1, points.length - 1);
-        var shortLabels = slot < 58;
-
-        function xAt(index) {
-          if (points.length === 1) return left + plotW / 2;
-          return left + (plotW * index) / (points.length - 1);
-        }
-        function yAt(value) {
-          return top + ((yMax - value) / ySpan) * plotH;
+        function fillTable() {
+          var digits = cfg.digits(state.points);
+          tableBody.textContent = "";
+          var rows = cfg.tableRows ? cfg.tableRows(state.points) : state.points;
+          rows.forEach(function (point) {
+            var row = document.createElement("tr");
+            var dateCell = document.createElement("td");
+            var priceCell = document.createElement("td");
+            dateCell.textContent = cfg.tableWhen(point);
+            priceCell.textContent = money(point.rate, digits);
+            row.appendChild(dateCell);
+            row.appendChild(priceCell);
+            tableBody.appendChild(row);
+          });
         }
 
-        points.forEach(function (point, index) {
-          point.x = xAt(index);
-          point.y = yAt(point.rate);
-        });
+        function render() {
+          var points = state.points;
+          if (points.length < 2) {
+            if (state.error) showMessage(state.error);
+            updateSummary();
+            return;
+          }
 
-        while (svg.firstChild) svg.removeChild(svg.firstChild);
-        svg.setAttribute("viewBox", "0 0 " + width + " " + height);
-        svg.setAttribute("width", String(width));
-        svg.setAttribute("height", String(height));
-        var desc = formatDay(points[0].date, false) + " to " + formatDay(points[points.length - 1].date, false) +
-          ", " + money(points[points.length - 1].rate, 2) + " per ounce on the latest daily point.";
-        svg.setAttribute("aria-label", "Silver price chart, USD per troy ounce, " + desc);
-        svg.setAttribute("data-points", String(points.length));
+          var width = Math.max(260, Math.floor(wrapEl.clientWidth));
+          if (!width) return;
+          var height = width < 480 ? 252 : 286;
+          var digits = cfg.digits(points);
+          var spotKey = state.spot ? state.spot.price.toFixed(digits) : "none";
+          var sum = 0;
+          points.forEach(function (point) { sum += point.rate; });
+          var drawKey = width + "x" + height + "|" + spotKey + "|" + points.length + "|" +
+            points[0].t + ":" + points[0].rate + "|" +
+            points[points.length - 1].t + ":" + points[points.length - 1].rate + "|" +
+            sum.toFixed(8);
+          if (drawKey === lastDrawKey) {
+            updateSummary();
+            return;
+          }
+          lastDrawKey = drawKey;
 
-        var defs = svgEl("defs");
-        var gradient = svgEl("linearGradient", { id: "silver-fill", x1: "0", y1: "0", x2: "0", y2: "1" });
-        gradient.appendChild(svgEl("stop", { offset: "0%", "stop-color": "#5ba3f0", "stop-opacity": "0.45" }));
-        gradient.appendChild(svgEl("stop", { offset: "100%", "stop-color": "#5ba3f0", "stop-opacity": "0.02" }));
-        defs.appendChild(gradient);
-        svg.appendChild(defs);
+          var rates = points.map(function (p) { return p.rate; });
+          var min = Math.min.apply(null, rates);
+          var max = Math.max.apply(null, rates);
+          if (state.spot && Number.isFinite(state.spot.price)) {
+            min = Math.min(min, state.spot.price);
+            max = Math.max(max, state.spot.price);
+          }
+          var span = max - min || Math.abs(max) * 0.02 || 0.0001;
+          var pad = Math.max(span * 0.18, cfg.padFloor || 0);
+          var yMin = min - pad;
+          var yMax = max + pad;
+          var ySpan = yMax - yMin;
 
-        var tickCount = 4;
-        for (var t = 0; t < tickCount; t++) {
-          var value = yMin + (ySpan * t) / (tickCount - 1);
-          var y = yAt(value);
-          svg.appendChild(svgEl("line", {
-            x1: String(left),
-            y1: String(y),
-            x2: String(width - right),
-            y2: String(y),
-            stroke: "rgba(214,235,255,0.18)",
-            "stroke-width": "1"
-          }));
+          var left = digits >= 5 ? (width < 480 ? 64 : 72) : (width < 480 ? 48 : 56);
+          var right = 12;
+          var top = 16;
+          var bottom = width < 480 ? 36 : 32;
+          var plotW = width - left - right;
+          var plotH = height - top - bottom;
+
+          function xAt(index) {
+            if (points.length === 1) return left + plotW / 2;
+            return left + (plotW * index) / (points.length - 1);
+          }
+          function yAt(value) {
+            return top + ((yMax - value) / ySpan) * plotH;
+          }
+
+          points.forEach(function (point, index) {
+            point.x = xAt(index);
+            point.y = yAt(point.rate);
+          });
+
+          var labelIndexes = cfg.labelIndexes(points);
+          var labelSlot = plotW / Math.max(1, labelIndexes.length - 1);
+          var shortLabels = labelSlot < 64;
+
+          while (svg.firstChild) svg.removeChild(svg.firstChild);
+          svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+          svg.setAttribute("width", String(width));
+          svg.setAttribute("height", String(height));
+          svg.setAttribute("aria-label", cfg.aria(points, money, digits));
+          svg.setAttribute("data-points", String(points.length));
+
+          var defs = svgEl("defs");
+          var gradient = svgEl("linearGradient", { id: cfg.gradientId, x1: "0", y1: "0", x2: "0", y2: "1" });
+          gradient.appendChild(svgEl("stop", { offset: "0%", "stop-color": "#5ba3f0", "stop-opacity": "0.45" }));
+          gradient.appendChild(svgEl("stop", { offset: "100%", "stop-color": "#5ba3f0", "stop-opacity": "0.02" }));
+          defs.appendChild(gradient);
+          svg.appendChild(defs);
+
+          var tickCount = 4;
+          for (var t = 0; t < tickCount; t++) {
+            var value = yMin + (ySpan * t) / (tickCount - 1);
+            var y = yAt(value);
+            svg.appendChild(svgEl("line", {
+              x1: String(left),
+              y1: String(y),
+              x2: String(width - right),
+              y2: String(y),
+              stroke: "rgba(214,235,255,0.18)",
+              "stroke-width": "1"
+            }));
+            svg.appendChild(svgEl("text", {
+              x: String(left - 8),
+              y: String(y + 4),
+              "text-anchor": "end",
+              fill: "#d6ebff",
+              "font-size": width < 480 ? "11" : "12",
+              "font-family": "system-ui, sans-serif"
+            }, money(value, digits).replace("$", "")));
+          }
+
           svg.appendChild(svgEl("text", {
-            x: String(left - 8),
-            y: String(y + 4),
-            "text-anchor": "end",
+            x: String(left),
+            y: "12",
             fill: "#d6ebff",
-            "font-size": width < 480 ? "11" : "12",
-            "font-family": "system-ui, sans-serif"
-          }, money(value, digits).replace("$", "")));
-        }
-
-        svg.appendChild(svgEl("text", {
-          x: String(left),
-          y: "12",
-          fill: "#d6ebff",
-          "font-size": "11",
-          "font-family": "system-ui, sans-serif",
-          opacity: "0.85"
-        }, "USD/oz"));
-
-        var area = "M " + points[0].x + " " + (top + plotH);
-        var line = "";
-        points.forEach(function (point, index) {
-          var cmd = index === 0 ? "M " : " L ";
-          line += cmd + point.x.toFixed(2) + " " + point.y.toFixed(2);
-          area += " L " + point.x.toFixed(2) + " " + point.y.toFixed(2);
-        });
-        area += " L " + points[points.length - 1].x + " " + (top + plotH) + " Z";
-        svg.appendChild(svgEl("path", { d: area, fill: "url(#silver-fill)" }));
-        svg.appendChild(svgEl("path", {
-          d: line,
-          fill: "none",
-          stroke: "#b9dcff",
-          "stroke-width": "2.5",
-          "stroke-linejoin": "round",
-          "stroke-linecap": "round"
-        }));
-
-        if (state.spot && Number.isFinite(state.spot.price)) {
-          var spotY = yAt(state.spot.price);
-          svg.appendChild(svgEl("line", {
-            x1: String(left),
-            y1: String(spotY),
-            x2: String(width - right),
-            y2: String(spotY),
-            stroke: "#ffe8a3",
-            "stroke-width": "1.5",
-            "stroke-dasharray": "4 4"
-          }));
-          svg.appendChild(svgEl("text", {
-            x: String(width - right),
-            y: String(Math.max(top + 12, spotY - 6)),
-            "text-anchor": "end",
-            fill: "#ffe8a3",
             "font-size": "11",
-            "font-family": "system-ui, sans-serif"
-          }, "spot"));
+            "font-family": "system-ui, sans-serif",
+            opacity: "0.85"
+          }, cfg.axisTitle));
+
+          var area = "M " + points[0].x + " " + (top + plotH);
+          var line = "";
+          points.forEach(function (point, index) {
+            var cmd = index === 0 ? "M " : " L ";
+            line += cmd + point.x.toFixed(2) + " " + point.y.toFixed(2);
+            area += " L " + point.x.toFixed(2) + " " + point.y.toFixed(2);
+          });
+          area += " L " + points[points.length - 1].x + " " + (top + plotH) + " Z";
+          svg.appendChild(svgEl("path", { d: area, fill: "url(#" + cfg.gradientId + ")" }));
+          svg.appendChild(svgEl("path", {
+            d: line,
+            fill: "none",
+            stroke: "#b9dcff",
+            "stroke-width": "2.5",
+            "stroke-linejoin": "round",
+            "stroke-linecap": "round"
+          }));
+
+          if (state.spot && Number.isFinite(state.spot.price)) {
+            var spotY = yAt(state.spot.price);
+            svg.appendChild(svgEl("line", {
+              x1: String(left),
+              y1: String(spotY),
+              x2: String(width - right),
+              y2: String(spotY),
+              stroke: "#ffe8a3",
+              "stroke-width": "1.5",
+              "stroke-dasharray": "4 4"
+            }));
+            svg.appendChild(svgEl("text", {
+              x: String(width - right),
+              y: String(Math.max(top + 12, spotY - 6)),
+              "text-anchor": "end",
+              fill: "#ffe8a3",
+              "font-size": "11",
+              "font-family": "system-ui, sans-serif"
+            }, "spot"));
+          }
+
+          if (cfg.showDots) {
+            points.forEach(function (point, index) {
+              var dot = svgEl("circle", {
+                cx: String(point.x),
+                cy: String(point.y),
+                r: index === state.selected ? "5" : "3.5",
+                fill: "#f5f9ff",
+                stroke: "#1e4d8c",
+                "stroke-width": "1.5"
+              });
+              dot.appendChild(svgEl("title", null, cfg.readout(point, money, digits)));
+              svg.appendChild(dot);
+            });
+          }
+
+          labelIndexes.forEach(function (index, labelPos) {
+            var point = points[index];
+            var label = shortLabels
+              ? String(Number(point.date.slice(8)))
+              : formatDay(point.date, false);
+            var anchor = "middle";
+            if (!shortLabels && cfg.showDots && labelPos === 0) anchor = "start";
+            if (!shortLabels && cfg.showDots && labelPos === labelIndexes.length - 1) anchor = "end";
+            svg.appendChild(svgEl("text", {
+              x: String(point.x),
+              y: String(height - (shortLabels ? 12 : 10)),
+              "text-anchor": anchor,
+              fill: "#d6ebff",
+              "font-size": shortLabels ? "11" : "12",
+              "font-family": "system-ui, sans-serif"
+            }, label));
+          });
+
+          svg.appendChild(svgEl("circle", {
+            id: cfg.cursorId,
+            r: "7",
+            fill: "none",
+            stroke: "#ffffff",
+            "stroke-width": "2",
+            "pointer-events": "none",
+            visibility: "hidden"
+          }));
+
+          messageEl.hidden = true;
+          svg.classList.remove("is-hidden");
+          readoutEl.hidden = false;
+          if (state.selected < 0 || state.selected >= points.length) {
+            state.selected = points.length - 1;
+          }
+          setReadout(state.selected, false);
+          updateSummary();
+          fillTable();
         }
 
-        points.forEach(function (point, index) {
-          var dot = svgEl("circle", {
-            cx: String(point.x),
-            cy: String(point.y),
-            r: index === state.selected ? "5" : "3.5",
-            fill: "#f5f9ff",
-            stroke: "#1e4d8c",
-            "stroke-width": "1.5"
-          });
-          dot.appendChild(svgEl("title", null, formatDay(point.date, true) + " · " + money(point.rate, 3)));
-          svg.appendChild(dot);
-
-          var label = shortLabels
-            ? String(Number(point.date.slice(8)))
-            : formatDay(point.date, false);
-          var anchor = "middle";
-          if (!shortLabels && index === 0) anchor = "start";
-          if (!shortLabels && index === points.length - 1) anchor = "end";
-          svg.appendChild(svgEl("text", {
-            x: String(point.x),
-            y: String(height - (shortLabels ? 12 : 10)),
-            "text-anchor": anchor,
-            fill: "#d6ebff",
-            "font-size": shortLabels ? "11" : "12",
-            "font-family": "system-ui, sans-serif"
-          }, label));
-        });
-
-        svg.appendChild(svgEl("circle", {
-          id: "silver-cursor",
-          r: "7",
-          fill: "none",
-          stroke: "#ffffff",
-          "stroke-width": "2",
-          "pointer-events": "none",
-          visibility: "hidden"
-        }));
-
-        messageEl.hidden = true;
-        svg.classList.remove("is-hidden");
-        readoutEl.hidden = false;
-        if (state.selected < 0 || state.selected >= points.length) {
-          state.selected = points.length - 1;
+        function setReadout(index, showCursor) {
+          var point = state.points[index];
+          if (!point) return;
+          state.selected = index;
+          var digits = cfg.digits(state.points);
+          readoutEl.textContent = cfg.readout(point, money, digits);
+          var cursor = document.getElementById(cfg.cursorId);
+          if (!cursor || !point.x) return;
+          cursor.setAttribute("cx", String(point.x));
+          cursor.setAttribute("cy", String(point.y));
+          cursor.setAttribute("visibility", showCursor ? "visible" : "hidden");
         }
-        setReadout(state.selected, false);
-        updateSummary();
-        fillTable();
-      }
 
-      function setReadout(index, showCursor) {
-        var point = state.points[index];
-        if (!point) return;
-        state.selected = index;
-        readoutEl.textContent = formatDay(point.date, true) + " · " + money(point.rate, 3) + " daily reference";
-        var cursor = document.getElementById("silver-cursor");
-        if (!cursor || !point.x) return;
-        cursor.setAttribute("cx", String(point.x));
-        cursor.setAttribute("cy", String(point.y));
-        cursor.setAttribute("visibility", showCursor ? "visible" : "hidden");
-      }
+        function svgPoint(evt) {
+          var pt = svg.createSVGPoint();
+          pt.x = evt.clientX;
+          pt.y = evt.clientY;
+          var ctm = svg.getScreenCTM();
+          if (!ctm) return null;
+          return pt.matrixTransform(ctm.inverse());
+        }
 
-      function svgPoint(evt) {
-        var pt = svg.createSVGPoint();
-        pt.x = evt.clientX;
-        pt.y = evt.clientY;
-        var ctm = svg.getScreenCTM();
-        if (!ctm) return null;
-        return pt.matrixTransform(ctm.inverse());
-      }
-
-      function selectFromEvent(evt) {
-        if (!state.points.length || svg.classList.contains("is-hidden")) return;
-        var local = svgPoint(evt);
-        if (!local) return;
-        var best = 0;
-        var bestDist = Infinity;
-        state.points.forEach(function (point, index) {
-          var dist = Math.abs(point.x - local.x);
-          if (dist < bestDist) {
-            bestDist = dist;
-            best = index;
-          }
-        });
-        setReadout(best, true);
-      }
-
-      svg.addEventListener("pointerdown", selectFromEvent);
-      svg.addEventListener("pointermove", function (evt) {
-        if (evt.pointerType === "mouse" || evt.buttons) selectFromEvent(evt);
-      });
-      svg.addEventListener("pointerleave", function () {
-        if (state.points.length) setReadout(state.points.length - 1, false);
-      });
-
-      function loadHistory() {
-        var from = isoDaysAgo(6);
-        var to = isoDaysAgo(0);
-        var url = HISTORY_URL + "?base=xag&quotes=usd&from=" + from + "&to=" + to;
-        return fetchJson(url, 12000).then(function (rows) {
-          if (!Array.isArray(rows)) throw new Error("Unexpected silver history");
-          var byDate = {};
-          rows.forEach(function (row) {
-            var rate = Number(row && row.rate);
-            if (!row || typeof row.date !== "string" || !Number.isFinite(rate) || rate <= 0) return;
-            if (String(row.quote || "USD").toUpperCase() !== "USD") return;
-            byDate[row.date] = rate;
+        function selectFromEvent(evt) {
+          if (!state.points.length || svg.classList.contains("is-hidden")) return;
+          var local = svgPoint(evt);
+          if (!local) return;
+          var best = 0;
+          var bestDist = Infinity;
+          state.points.forEach(function (point, index) {
+            var dist = Math.abs(point.x - local.x);
+            if (dist < bestDist) {
+              bestDist = dist;
+              best = index;
+            }
           });
-          var points = Object.keys(byDate).sort().map(function (date) {
-            return { date: date, rate: byDate[date] };
+          setReadout(best, true);
+        }
+
+        svg.addEventListener("pointerdown", selectFromEvent);
+        svg.addEventListener("pointermove", function (evt) {
+          if (evt.pointerType === "mouse" || evt.buttons) selectFromEvent(evt);
+        });
+        svg.addEventListener("pointerleave", function () {
+          if (state.points.length) setReadout(state.points.length - 1, false);
+        });
+
+        function loadHistory() {
+          return cfg.fetchHistory(fetchJson).then(function (points) {
+            if (!points || points.length < 2) throw new Error("short");
+            state.points = points;
+            state.error = "";
+            render();
+          }).catch(function () {
+            if (!state.points.length) {
+              state.error = cfg.errorText;
+              showMessage(state.error);
+              updateSummary();
+            }
           });
-          if (points.length < 2) throw new Error("Not enough daily silver rates for a weekly chart.");
-          state.points = points;
-          state.error = "";
-          render();
-        }).catch(function () {
-          if (!state.points.length) {
-            state.error = "Weekly silver prices could not be loaded. Refresh the page to try again.";
-            showMessage(state.error);
-            updateSummary();
-          }
+        }
+
+        function loadSpot() {
+          return cfg.fetchSpot(fetchJson).then(function (spot) {
+            if (!spot || !Number.isFinite(spot.price) || spot.price <= 0) throw new Error("bad spot");
+            state.spot = spot;
+            state.spotStatus = "ok";
+            render();
+          }).catch(function () {
+            if (state.spotStatus !== "ok") {
+              state.spotStatus = "error";
+              updateSummary();
+            }
+          });
+        }
+
+        loadHistory();
+        loadSpot();
+        setInterval(loadHistory, cfg.historyMs);
+        setInterval(loadSpot, cfg.spotMs);
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "visible") loadSpot();
         });
-      }
 
-      function loadSpot() {
-        return fetchJson(SPOT_URL, 8000).then(function (data) {
-          var price = Number(data && data.price);
-          if (!Number.isFinite(price) || price <= 0 || price > 10000) throw new Error("Bad spot");
-          if (data.symbol && String(data.symbol).toUpperCase() !== "XAG") throw new Error("Unexpected symbol");
-          state.spot = { price: price, updatedAt: data.updatedAt || "" };
-          state.spotStatus = "ok";
-          render();
-        }).catch(function () {
-          if (state.spotStatus !== "ok") {
-            state.spotStatus = "error";
-            updateSummary();
-          }
-        });
-      }
-
-      loadHistory();
-      loadSpot();
-      setInterval(loadHistory, 15 * 60 * 1000);
-      setInterval(loadSpot, 60 * 1000);
-      document.addEventListener("visibilitychange", function () {
-        if (document.visibilityState === "visible") loadSpot();
-      });
-
-      if (window.ResizeObserver) {
-        var queued = false;
-        var observer = new ResizeObserver(function () {
-          var width = Math.floor(wrapEl.clientWidth);
-          if (!width || width === lastWidth) return;
-          lastWidth = width;
-          if (queued) return;
-          queued = true;
-          requestAnimationFrame(function () {
-            queued = false;
+        if (window.ResizeObserver) {
+          var queued = false;
+          var observer = new ResizeObserver(function () {
+            var width = Math.floor(wrapEl.clientWidth);
+            if (!width || width === lastWidth) return;
+            lastWidth = width;
+            if (queued) return;
+            queued = true;
+            requestAnimationFrame(function () {
+              queued = false;
+              lastDrawKey = "";
+              render();
+            });
+          });
+          observer.observe(wrapEl);
+        } else {
+          window.addEventListener("resize", function () {
             lastDrawKey = "";
             render();
           });
-        });
-        observer.observe(wrapEl);
-      } else {
-        window.addEventListener("resize", function () {
-          lastDrawKey = "";
-          render();
-        });
+        }
       }
+
+      function everyPoint(points) {
+        return points.map(function (_, index) { return index; });
+      }
+
+      function dayStarts(points) {
+        var indexes = [];
+        var seen = {};
+        points.forEach(function (point, index) {
+          if (!seen[point.date]) {
+            seen[point.date] = true;
+            indexes.push(index);
+          }
+        });
+        return indexes;
+      }
+
+      function silverDigits() {
+        return 3;
+      }
+
+      function tfuelDigits() {
+        return 5;
+      }
+
+      mountChart({
+        ids: {
+          spot: "silver-spot",
+          meta: "silver-meta",
+          message: "silver-chart-message",
+          readout: "silver-readout",
+          wrap: "silver-chart-wrap",
+          svg: "silver-chart",
+          table: "silver-table-body"
+        },
+        gradientId: "silver-fill",
+        cursorId: "silver-cursor",
+        axisTitle: "USD/oz",
+        unit: "/ oz spot",
+        fallbackUnit: "latest daily",
+        showDots: true,
+        padFloor: 0.05,
+        labelIndexes: everyPoint,
+        historyMs: 15 * 60 * 1000,
+        spotMs: 60 * 1000,
+        digits: silverDigits,
+        errorText: "Weekly silver prices could not be loaded. Refresh the page to try again.",
+        aria: function (points, fmt, digits) {
+          return "Silver price chart, USD per troy ounce, " +
+            formatDay(points[0].date, false) + " to " + formatDay(points[points.length - 1].date, false) +
+            ", " + fmt(points[points.length - 1].rate, digits) + " per ounce on the latest daily point.";
+        },
+        readout: function (point, fmt, digits) {
+          return formatDay(point.date, true) + " · " + fmt(point.rate, Math.max(digits, 3)) + " daily reference";
+        },
+        tableWhen: function (point) { return point.date; },
+        fetchHistory: function (getJson) {
+          var from = isoDaysAgo(6);
+          var to = isoDaysAgo(0);
+          var url = "https://api.frankfurter.dev/v2/rates?base=xag&quotes=usd&from=" + from + "&to=" + to;
+          return getJson(url, 12000).then(function (rows) {
+            if (!Array.isArray(rows)) throw new Error("Unexpected silver history");
+            var byDate = {};
+            rows.forEach(function (row) {
+              var rate = Number(row && row.rate);
+              if (!row || typeof row.date !== "string" || !Number.isFinite(rate) || rate <= 0) return;
+              if (String(row.quote || "USD").toUpperCase() !== "USD") return;
+              byDate[row.date] = rate;
+            });
+            return Object.keys(byDate).sort().map(function (date) {
+              return { date: date, t: date, rate: byDate[date] };
+            });
+          });
+        },
+        fetchSpot: function (getJson) {
+          return getJson("https://api.gold-api.com/price/XAG", 8000).then(function (data) {
+            var price = Number(data && data.price);
+            if (!Number.isFinite(price) || price <= 0 || price > 10000) throw new Error("Bad spot");
+            if (data.symbol && String(data.symbol).toUpperCase() !== "XAG") throw new Error("Unexpected symbol");
+            return { price: price, updatedAt: data.updatedAt || "" };
+          });
+        }
+      });
+
+      mountChart({
+        ids: {
+          spot: "tfuel-spot",
+          meta: "tfuel-meta",
+          message: "tfuel-chart-message",
+          readout: "tfuel-readout",
+          wrap: "tfuel-chart-wrap",
+          svg: "tfuel-chart",
+          table: "tfuel-table-body"
+        },
+        gradientId: "tfuel-fill",
+        cursorId: "tfuel-cursor",
+        axisTitle: "USD",
+        unit: "/ TFUEL",
+        fallbackUnit: "latest hour",
+        showDots: false,
+        labelIndexes: dayStarts,
+        historyMs: 15 * 60 * 1000,
+        spotMs: 60 * 1000,
+        digits: tfuelDigits,
+        errorText: "Weekly TFUEL prices could not be loaded. Refresh the page to try again.",
+        aria: function (points, fmt, digits) {
+          return "Theta Fuel (TFUEL) price chart in USD, " +
+            formatDay(points[0].date, false) + " to " + formatDay(points[points.length - 1].date, false) +
+            ", latest " + fmt(points[points.length - 1].rate, digits) + ".";
+        },
+        readout: function (point, fmt, digits) {
+          return formatStamp(point.t) + " · " + fmt(point.rate, digits);
+        },
+        tableRows: function (points) {
+          var lastByDay = {};
+          points.forEach(function (point) { lastByDay[point.date] = point; });
+          return Object.keys(lastByDay).sort().map(function (date) { return lastByDay[date]; });
+        },
+        tableWhen: function (point) { return formatStamp(point.t); },
+        fetchHistory: function (getJson) {
+          var url = "https://api.coingecko.com/api/v3/coins/theta-fuel/market_chart?vs_currency=usd&days=7";
+          return getJson(url, 12000).then(function (data) {
+            var rows = data && data.prices;
+            if (!Array.isArray(rows)) throw new Error("Unexpected TFUEL history");
+            var cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+            var byTime = {};
+            rows.forEach(function (row) {
+              if (!row || row.length < 2) return;
+              var t = Number(row[0]);
+              var rate = Number(row[1]);
+              if (!Number.isFinite(t) || !Number.isFinite(rate) || rate <= 0 || rate > 1000) return;
+              if (t < cutoff) return;
+              byTime[t] = rate;
+            });
+            return Object.keys(byTime).map(Number).sort(function (a, b) { return a - b; }).map(function (t) {
+              return {
+                t: t,
+                date: new Date(t).toISOString().slice(0, 10),
+                rate: byTime[t]
+              };
+            });
+          });
+        },
+        fetchSpot: function (getJson) {
+          var url = "https://api.coingecko.com/api/v3/simple/price?ids=theta-fuel&vs_currencies=usd&include_last_updated_at=true";
+          return getJson(url, 8000).then(function (data) {
+            var row = data && data["theta-fuel"];
+            var price = Number(row && row.usd);
+            if (!Number.isFinite(price) || price <= 0 || price > 1000) throw new Error("Bad TFUEL spot");
+            var updatedAt = "";
+            if (row.last_updated_at) updatedAt = new Date(row.last_updated_at * 1000).toISOString();
+            return { price: price, updatedAt: updatedAt };
+          });
+        }
+      });
     })();
   </script>
 </body>
