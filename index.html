@@ -230,16 +230,19 @@
         <p class="price-readout" id="silver-readout" hidden></p>
       </div>
       <p class="price-note" id="silver-note">
-        USD per troy ounce, about the last 7 days. Daily points are delayed reference rates from
-        <a href="https://frankfurter.dev/currencies/xag/usd/" target="_blank" rel="noopener noreferrer">Frankfurter</a>;
-        the axis is scaled to this week’s range. The spot price is a near-realtime indicative quote from
+        CAD per troy ounce, about the last 7 days. Daily points are delayed reference rates from
+        <a href="https://frankfurter.dev/currencies/xag/" target="_blank" rel="noopener noreferrer">Frankfurter</a>
+        (silver quoted in CAD);
+        the axis is scaled to this week’s range. The spot price is a near-realtime indicative USD quote from
         <a href="https://gold-api.com/" target="_blank" rel="noopener noreferrer">gold-api.com</a>,
-        not tick-by-tick.
+        converted to CAD per ounce with the latest
+        <a href="https://frankfurter.dev/currencies/usd/cad/" target="_blank" rel="noopener noreferrer">Frankfurter</a>
+        USD to CAD rate, not tick-by-tick.
       </p>
       <table class="sr-only" id="silver-table">
-        <caption>Daily silver reference rates in USD per troy ounce</caption>
+        <caption>Daily silver reference rates in CAD per troy ounce</caption>
         <thead>
-          <tr><th scope="col">Date</th><th scope="col">USD per oz</th></tr>
+          <tr><th scope="col">Date</th><th scope="col">CAD per oz</th></tr>
         </thead>
         <tbody id="silver-table-body"></tbody>
       </table>
@@ -254,15 +257,15 @@
         <p class="price-readout" id="tfuel-readout" hidden></p>
       </div>
       <p class="price-note" id="tfuel-note">
-        Theta Fuel (TFUEL) in US dollars, about the last 7 days. The line is hourly and the axis is scaled to this week’s range.
+        Theta Fuel (TFUEL) in Canadian dollars (CAD), about the last 7 days. The line is hourly and the axis is scaled to this week’s range.
         The spot price is a near-realtime indicative quote from
         <a href="https://www.coingecko.com/en/coins/theta-fuel" target="_blank" rel="noopener noreferrer">CoinGecko</a>,
         not tick-by-tick.
       </p>
       <table class="sr-only" id="tfuel-table">
-        <caption>Theta Fuel (TFUEL) prices in USD</caption>
+        <caption>Theta Fuel (TFUEL) prices in CAD</caption>
         <thead>
-          <tr><th scope="col">Time (UTC)</th><th scope="col">USD</th></tr>
+          <tr><th scope="col">Time (UTC)</th><th scope="col">CAD</th></tr>
         </thead>
         <tbody id="tfuel-table-body"></tbody>
       </table>
@@ -301,7 +304,7 @@
       }
 
       function money(value, digits) {
-        return "$" + Number(value).toLocaleString("en-CA", {
+        return "C$" + Number(value).toLocaleString("en-CA", {
           minimumFractionDigits: digits,
           maximumFractionDigits: digits
         });
@@ -544,7 +547,7 @@
               fill: "#d6ebff",
               "font-size": width < 480 ? "11" : "12",
               "font-family": "system-ui, sans-serif"
-            }, money(value, digits).replace("$", "")));
+            }, money(value, digits).replace("C$", "")));
           }
 
           svg.appendChild(svgEl("text", {
@@ -791,7 +794,7 @@
         },
         gradientId: "silver-fill",
         cursorId: "silver-cursor",
-        axisTitle: "USD/oz",
+        axisTitle: "CAD/oz",
         unit: "/ oz spot",
         fallbackUnit: "latest daily",
         showDots: true,
@@ -802,7 +805,7 @@
         digits: silverDigits,
         errorText: "Weekly silver prices could not be loaded. Refresh the page to try again.",
         aria: function (points, fmt, digits) {
-          return "Silver price chart, USD per troy ounce, " +
+          return "Silver price chart, CAD per troy ounce, " +
             formatDay(points[0].date, false) + " to " + formatDay(points[points.length - 1].date, false) +
             ", " + fmt(points[points.length - 1].rate, digits) + " per ounce on the latest daily point.";
         },
@@ -813,14 +816,14 @@
         fetchHistory: function (getJson) {
           var from = isoDaysAgo(6);
           var to = isoDaysAgo(0);
-          var url = "https://api.frankfurter.dev/v2/rates?base=xag&quotes=usd&from=" + from + "&to=" + to;
+          var url = "https://api.frankfurter.dev/v2/rates?base=xag&quotes=cad&from=" + from + "&to=" + to;
           return getJson(url, 12000).then(function (rows) {
             if (!Array.isArray(rows)) throw new Error("Unexpected silver history");
             var byDate = {};
             rows.forEach(function (row) {
               var rate = Number(row && row.rate);
               if (!row || typeof row.date !== "string" || !Number.isFinite(rate) || rate <= 0) return;
-              if (String(row.quote || "USD").toUpperCase() !== "USD") return;
+              if (String(row.quote || "").toUpperCase() !== "CAD") return;
               byDate[row.date] = rate;
             });
             return Object.keys(byDate).sort().map(function (date) {
@@ -829,10 +832,30 @@
           });
         },
         fetchSpot: function (getJson) {
-          return getJson("https://api.gold-api.com/price/XAG", 8000).then(function (data) {
-            var price = Number(data && data.price);
-            if (!Number.isFinite(price) || price <= 0 || price > 10000) throw new Error("Bad spot");
+          var spotUrl = "https://api.gold-api.com/price/XAG";
+          var fxUrl = "https://api.frankfurter.dev/v2/rates?base=usd&quotes=cad";
+          return Promise.all([
+            getJson(spotUrl, 8000),
+            getJson(fxUrl, 8000)
+          ]).then(function (results) {
+            var data = results[0];
+            var fxRows = results[1];
+            var usd = Number(data && data.price);
+            if (!Number.isFinite(usd) || usd <= 0 || usd > 10000) throw new Error("Bad spot");
             if (data.symbol && String(data.symbol).toUpperCase() !== "XAG") throw new Error("Unexpected symbol");
+            if (data.currency && String(data.currency).toUpperCase() !== "USD") throw new Error("Unexpected spot currency");
+            if (!Array.isArray(fxRows)) throw new Error("Unexpected FX");
+            var fx = NaN;
+            fxRows.forEach(function (row) {
+              var rate = Number(row && row.rate);
+              if (!row || String(row.quote || "").toUpperCase() !== "CAD") return;
+              if (String(row.base || "USD").toUpperCase() !== "USD") return;
+              if (!Number.isFinite(rate)) return;
+              fx = rate;
+            });
+            if (!Number.isFinite(fx) || fx < 0.5 || fx > 3) throw new Error("Bad FX");
+            var price = usd * fx;
+            if (!Number.isFinite(price) || price <= 0 || price > 20000) throw new Error("Bad CAD spot");
             return { price: price, updatedAt: data.updatedAt || "" };
           });
         }
@@ -850,7 +873,7 @@
         },
         gradientId: "tfuel-fill",
         cursorId: "tfuel-cursor",
-        axisTitle: "USD",
+        axisTitle: "CAD",
         unit: "/ TFUEL",
         fallbackUnit: "latest hour",
         showDots: false,
@@ -860,7 +883,7 @@
         digits: tfuelDigits,
         errorText: "Weekly TFUEL prices could not be loaded. Refresh the page to try again.",
         aria: function (points, fmt, digits) {
-          return "Theta Fuel (TFUEL) price chart in USD, " +
+          return "Theta Fuel (TFUEL) price chart in CAD, " +
             formatDay(points[0].date, false) + " to " + formatDay(points[points.length - 1].date, false) +
             ", latest " + fmt(points[points.length - 1].rate, digits) + ".";
         },
@@ -874,7 +897,7 @@
         },
         tableWhen: function (point) { return formatStamp(point.t); },
         fetchHistory: function (getJson) {
-          var url = "https://api.coingecko.com/api/v3/coins/theta-fuel/market_chart?vs_currency=usd&days=7";
+          var url = "https://api.coingecko.com/api/v3/coins/theta-fuel/market_chart?vs_currency=cad&days=7";
           return getJson(url, 12000).then(function (data) {
             var rows = data && data.prices;
             if (!Array.isArray(rows)) throw new Error("Unexpected TFUEL history");
@@ -898,10 +921,10 @@
           });
         },
         fetchSpot: function (getJson) {
-          var url = "https://api.coingecko.com/api/v3/simple/price?ids=theta-fuel&vs_currencies=usd&include_last_updated_at=true";
+          var url = "https://api.coingecko.com/api/v3/simple/price?ids=theta-fuel&vs_currencies=cad&include_last_updated_at=true";
           return getJson(url, 8000).then(function (data) {
             var row = data && data["theta-fuel"];
-            var price = Number(row && row.usd);
+            var price = Number(row && row.cad);
             if (!Number.isFinite(price) || price <= 0 || price > 1000) throw new Error("Bad TFUEL spot");
             var updatedAt = "";
             if (row.last_updated_at) updatedAt = new Date(row.last_updated_at * 1000).toISOString();
