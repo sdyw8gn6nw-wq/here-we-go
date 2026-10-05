@@ -47,47 +47,6 @@
       color: var(--pale);
       opacity: 0.95;
     }
-    .video-block {
-      margin: 0 0 1.5rem;
-    }
-    .video-wrap {
-      position: relative;
-      width: 100%;
-      padding-bottom: 56.25%;
-      height: 0;
-      overflow: hidden;
-      border-radius: 0.75rem;
-      border: 1px solid rgba(214, 235, 255, 0.35);
-      background: #000;
-    }
-    .video-wrap iframe {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: 0;
-    }
-    .video-caption {
-      margin: 0.65rem 0 0;
-      font-size: 0.85rem;
-      opacity: 0.85;
-    }
-    button.replay {
-      margin-top: 0.75rem;
-      cursor: pointer;
-      font: inherit;
-      font-weight: 600;
-      color: var(--pale);
-      background: transparent;
-      border: 1px solid rgba(214, 235, 255, 0.45);
-      border-radius: 0.6rem;
-      padding: 0.55rem 1rem;
-      transition: background 0.15s ease;
-    }
-    button.replay:hover {
-      background: rgba(214, 235, 255, 0.12);
-    }
     .price-block {
       margin: 0 0 1.5rem;
       text-align: center;
@@ -205,21 +164,6 @@
 <body>
   <main>
     <h1>Here we go</h1>
-    <div class="video-block">
-      <div class="video-wrap">
-        <iframe
-          id="landing-video"
-          title="DHC-2 Beaver water landing"
-          src="https://www.youtube.com/embed/Y0CqMjMVN34?rel=0&modestbranding=1&playsinline=1"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowfullscreen
-          loading="lazy"
-          referrerpolicy="strict-origin-when-cross-origin"
-        ></iframe>
-      </div>
-      <p class="video-caption">DHC-2 Beaver on floats — water landing (YouTube). Use Replay anytime.</p>
-      <button type="button" class="replay" id="replay-btn">Replay landing</button>
-    </div>
     <section class="price-block" aria-labelledby="silver-heading">
       <h2 id="silver-heading">Silver — weekly</h2>
       <p class="price-spot" id="silver-spot">Loading spot price…</p>
@@ -278,21 +222,6 @@
       <a class="button secondary" href="https://www.airliners.net/search?keywords=DHC-2+Beaver" target="_blank" rel="noopener noreferrer">DHC-2 photos — Airliners.net</a>
     </div>
   </main>
-  <script>
-    (function () {
-      var videoId = "Y0CqMjMVN34";
-      var base =
-        "https://www.youtube.com/embed/" +
-        videoId +
-        "?rel=0&modestbranding=1&playsinline=1&autoplay=1";
-      var iframe = document.getElementById("landing-video");
-      var btn = document.getElementById("replay-btn");
-      if (!iframe || !btn) return;
-      btn.addEventListener("click", function () {
-        iframe.src = base + "&t=" + Date.now();
-      });
-    })();
-  </script>
   <script>
     (function () {
       var SVG_NS = "http://www.w3.org/2000/svg";
