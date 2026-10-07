@@ -155,6 +155,102 @@
     a.button.secondary:hover {
       background: rgba(214, 235, 255, 0.12);
     }
+    .playlist {
+      margin: 0 0 1.5rem;
+      text-align: center;
+    }
+    .playlist h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: var(--pale);
+    }
+    .playlist-sub {
+      margin: 0.35rem 0 1rem;
+      font-size: 0.9rem;
+    }
+    .playlist-grid {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+    .playlist-grid a {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      text-decoration: none;
+      color: inherit;
+      background: rgba(5, 16, 32, 0.4);
+      border: 1px solid rgba(214, 235, 255, 0.22);
+      border-radius: 0.75rem;
+      overflow: hidden;
+      text-align: left;
+      transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+    }
+    .playlist-grid a:hover {
+      background: rgba(5, 16, 32, 0.55);
+      border-color: rgba(214, 235, 255, 0.5);
+      transform: translateY(-2px);
+    }
+    .playlist-grid a:focus-visible {
+      outline: 2px solid var(--pale);
+      outline-offset: 2px;
+    }
+    .playlist-art {
+      position: relative;
+      display: block;
+      background: rgba(5, 16, 32, 0.65);
+    }
+    .playlist-art img {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      object-position: center;
+    }
+    .playlist-num {
+      position: absolute;
+      top: 0.4rem;
+      left: 0.4rem;
+      min-width: 1.6rem;
+      padding: 0.12rem 0.4rem;
+      border-radius: 999px;
+      background: var(--pale);
+      color: var(--bg);
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2;
+      text-align: center;
+    }
+    .playlist-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      padding: 0.5rem 0.55rem 0.6rem;
+    }
+    .playlist-artist {
+      font-size: 0.72rem;
+      font-weight: 600;
+      line-height: 1.3;
+      color: var(--light);
+    }
+    .playlist-title {
+      font-size: 0.84rem;
+      font-weight: 700;
+      line-height: 1.3;
+      color: var(--white);
+    }
+    @media (min-width: 640px) {
+      .playlist-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
     @media (max-width: 540px) {
       body { padding: 1rem 0.75rem; }
       main { padding: 1.6rem 1rem; }
@@ -213,6 +309,108 @@
         </thead>
         <tbody id="tfuel-table-body"></tbody>
       </table>
+    </section>
+    <section class="playlist" aria-labelledby="playlist-heading">
+      <h2 id="playlist-heading">Playlist picks</h2>
+      <p class="playlist-sub">From the '80s Hard Rock &amp; Hair Metal Mix</p>
+      <ul class="playlist-grid">
+        <li>
+          <a href="https://www.youtube.com/watch?v=5ETENrv8cnU" target="_blank" rel="noopener noreferrer">
+            <span class="playlist-art">
+              <img src="https://img.youtube.com/vi/5ETENrv8cnU/hqdefault.jpg" alt="Firehouse – Love of a Lifetime" width="480" height="360" loading="lazy">
+              <span class="playlist-num">1</span>
+            </span>
+            <span class="playlist-copy">
+              <span class="playlist-artist">Firehouse</span>
+              <span class="playlist-title">Love of a Lifetime</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.youtube.com/watch?v=dQSkuDWhaAo" target="_blank" rel="noopener noreferrer">
+            <span class="playlist-art">
+              <img src="https://img.youtube.com/vi/dQSkuDWhaAo/hqdefault.jpg" alt="Firehouse – When I Look into Your Eyes" width="480" height="360" loading="lazy">
+              <span class="playlist-num">2</span>
+            </span>
+            <span class="playlist-copy">
+              <span class="playlist-artist">Firehouse</span>
+              <span class="playlist-title">When I Look into Your Eyes</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.youtube.com/watch?v=lW0FpcOEEcM" target="_blank" rel="noopener noreferrer">
+            <span class="playlist-art">
+              <img src="https://img.youtube.com/vi/lW0FpcOEEcM/hqdefault.jpg" alt="Cinderella – Nobody's Fool" width="480" height="360" loading="lazy">
+              <span class="playlist-num">5</span>
+            </span>
+            <span class="playlist-copy">
+              <span class="playlist-artist">Cinderella</span>
+              <span class="playlist-title">Nobody's Fool</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.youtube.com/watch?v=jhdFe3evXpk" target="_blank" rel="noopener noreferrer">
+            <span class="playlist-art">
+              <img src="https://img.youtube.com/vi/jhdFe3evXpk/hqdefault.jpg" alt="Dire Straits – Brothers in Arms" width="480" height="360" loading="lazy">
+              <span class="playlist-num">11</span>
+            </span>
+            <span class="playlist-copy">
+              <span class="playlist-artist">Dire Straits</span>
+              <span class="playlist-title">Brothers in Arms</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.youtube.com/watch?v=WyF8RHM1OCg" target="_blank" rel="noopener noreferrer">
+            <span class="playlist-art">
+              <img src="https://img.youtube.com/vi/WyF8RHM1OCg/hqdefault.jpg" alt="Whitesnake – Here I Go Again" width="480" height="360" loading="lazy">
+              <span class="playlist-num">19</span>
+            </span>
+            <span class="playlist-copy">
+              <span class="playlist-artist">Whitesnake</span>
+              <span class="playlist-title">Here I Go Again</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.youtube.com/watch?v=GOJk0HW_hJw" target="_blank" rel="noopener noreferrer">
+            <span class="playlist-art">
+              <img src="https://img.youtube.com/vi/GOJk0HW_hJw/hqdefault.jpg" alt="Whitesnake – Is This Love" width="480" height="360" loading="lazy">
+              <span class="playlist-num">20</span>
+            </span>
+            <span class="playlist-copy">
+              <span class="playlist-artist">Whitesnake</span>
+              <span class="playlist-title">Is This Love</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.youtube.com/watch?v=YHRvDo8rUoQ" target="_blank" rel="noopener noreferrer">
+            <span class="playlist-art">
+              <img src="https://img.youtube.com/vi/YHRvDo8rUoQ/hqdefault.jpg" alt="Alphaville – Forever Young" width="480" height="360" loading="lazy">
+              <span class="playlist-num">78</span>
+            </span>
+            <span class="playlist-copy">
+              <span class="playlist-artist">Alphaville</span>
+              <span class="playlist-title">Forever Young</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.youtube.com/watch?v=6NXnxTNIWkc" target="_blank" rel="noopener noreferrer">
+            <span class="playlist-art">
+              <img src="https://img.youtube.com/vi/6NXnxTNIWkc/hqdefault.jpg" alt="4 Non Blondes – What's Up" width="480" height="360" loading="lazy">
+              <span class="playlist-num">80</span>
+            </span>
+            <span class="playlist-copy">
+              <span class="playlist-artist">4 Non Blondes</span>
+              <span class="playlist-title">What's Up</span>
+            </span>
+          </a>
+        </li>
+      </ul>
     </section>
     <p>Open a de Havilland Canada DHC-2 Beaver page:</p>
     <div class="buttons">
