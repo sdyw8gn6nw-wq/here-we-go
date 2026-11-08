@@ -131,6 +131,7 @@
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
+      margin: 0 0 1.5rem;
     }
     a.button {
       display: block;
@@ -146,14 +147,6 @@
     a.button:hover {
       background: #ffffff;
       transform: translateY(-1px);
-    }
-    a.button.secondary {
-      background: transparent;
-      color: var(--pale);
-      border-color: rgba(214, 235, 255, 0.45);
-    }
-    a.button.secondary:hover {
-      background: rgba(214, 235, 255, 0.12);
     }
     .playlist {
       margin: 0 0 1.5rem;
@@ -260,6 +253,9 @@
 <body>
   <main>
     <h1>Here we go</h1>
+    <div class="buttons">
+      <a class="button" href="https://dhc-2.com/current_cover_page.htm" target="_blank" rel="noopener noreferrer">DHC-2.com — cover page</a>
+    </div>
     <section class="price-block" aria-labelledby="silver-heading">
       <h2 id="silver-heading">Silver — weekly</h2>
       <p class="price-spot" id="silver-spot">Loading spot price…</p>
@@ -308,6 +304,30 @@
           <tr><th scope="col">Time (UTC)</th><th scope="col">CAD</th></tr>
         </thead>
         <tbody id="tfuel-table-body"></tbody>
+      </table>
+    </section>
+    <section class="price-block" aria-labelledby="theta-heading">
+      <h2 id="theta-heading">THETA — weekly</h2>
+      <p class="price-spot" id="theta-spot">Loading spot price…</p>
+      <p class="price-meta" id="theta-meta"></p>
+      <div class="chart-card" id="theta-chart-wrap">
+        <p class="chart-message" id="theta-chart-message">Loading the last 7 days…</p>
+        <svg id="theta-chart" class="price-chart is-hidden" role="img" aria-labelledby="theta-heading"></svg>
+        <p class="price-readout" id="theta-readout" hidden></p>
+      </div>
+      <p class="price-note" id="theta-note">
+        Theta Network (THETA) in Canadian dollars (CAD), about the last 7 days. THETA is the network token; Theta Fuel (TFUEL) is the chart above.
+        The line is hourly and the axis is scaled to this week’s range.
+        The spot price is a near-realtime indicative quote from
+        <a href="https://www.coingecko.com/en/coins/theta-network" target="_blank" rel="noopener noreferrer">CoinGecko</a>,
+        not tick-by-tick.
+      </p>
+      <table class="sr-only" id="theta-table">
+        <caption>Theta Network (THETA) prices in CAD</caption>
+        <thead>
+          <tr><th scope="col">Time (UTC)</th><th scope="col">CAD</th></tr>
+        </thead>
+        <tbody id="theta-table-body"></tbody>
       </table>
     </section>
     <section class="playlist" aria-labelledby="playlist-heading">
@@ -412,13 +432,6 @@
         </li>
       </ul>
     </section>
-    <p>Open a de Havilland Canada DHC-2 Beaver page:</p>
-    <div class="buttons">
-      <a class="button" href="https://dhc-2.com/current_cover_page.htm" target="_blank" rel="noopener noreferrer">DHC-2.com — cover page</a>
-      <a class="button" href="https://en.wikipedia.org/wiki/De_Havilland_Canada_DHC-2_Beaver" target="_blank" rel="noopener noreferrer">DHC-2 Beaver — Wikipedia</a>
-      <a class="button secondary" href="https://www.vikingair.com/viking-aircraft/dhc-2-beaver" target="_blank" rel="noopener noreferrer">Viking Air — DHC-2 Beaver</a>
-      <a class="button secondary" href="https://www.airliners.net/search?keywords=DHC-2+Beaver" target="_blank" rel="noopener noreferrer">DHC-2 photos — Airliners.net</a>
-    </div>
   </main>
   <script>
     (function () {
@@ -856,8 +869,12 @@
 
         loadHistory();
         loadSpot();
-        setInterval(loadHistory, cfg.historyMs);
-        setInterval(loadSpot, cfg.spotMs);
+        function armRefresh() {
+          setInterval(loadHistory, cfg.historyMs);
+          setInterval(loadSpot, cfg.spotMs);
+        }
+        if (cfg.phaseMs) setTimeout(armRefresh, cfg.phaseMs);
+        else armRefresh();
         document.addEventListener("visibilitychange", function () {
           if (document.visibilityState === "visible") loadSpot();
         });
@@ -906,6 +923,10 @@
       }
 
       function tfuelDigits() {
+        return 5;
+      }
+
+      function thetaDigits() {
         return 5;
       }
 
@@ -1053,6 +1074,79 @@
             var row = data && data["theta-fuel"];
             var price = Number(row && row.cad);
             if (!Number.isFinite(price) || price <= 0 || price > 1000) throw new Error("Bad TFUEL spot");
+            var updatedAt = "";
+            if (row.last_updated_at) updatedAt = new Date(row.last_updated_at * 1000).toISOString();
+            return { price: price, updatedAt: updatedAt };
+          });
+        }
+      });
+
+      mountChart({
+        ids: {
+          spot: "theta-spot",
+          meta: "theta-meta",
+          message: "theta-chart-message",
+          readout: "theta-readout",
+          wrap: "theta-chart-wrap",
+          svg: "theta-chart",
+          table: "theta-table-body"
+        },
+        gradientId: "theta-fill",
+        cursorId: "theta-cursor",
+        axisTitle: "CAD",
+        unit: "/ THETA",
+        fallbackUnit: "latest hour",
+        showDots: false,
+        labelIndexes: dayStarts,
+        historyMs: 15 * 60 * 1000,
+        spotMs: 60 * 1000,
+        phaseMs: 30 * 1000,
+        digits: thetaDigits,
+        errorText: "Weekly THETA prices could not be loaded. Refresh the page to try again.",
+        aria: function (points, fmt, digits) {
+          return "Theta Network (THETA) price chart in CAD, " +
+            formatDay(points[0].date, false) + " to " + formatDay(points[points.length - 1].date, false) +
+            ", latest " + fmt(points[points.length - 1].rate, digits) + ".";
+        },
+        readout: function (point, fmt, digits) {
+          return formatStamp(point.t) + " · " + fmt(point.rate, digits);
+        },
+        tableRows: function (points) {
+          var lastByDay = {};
+          points.forEach(function (point) { lastByDay[point.date] = point; });
+          return Object.keys(lastByDay).sort().map(function (date) { return lastByDay[date]; });
+        },
+        tableWhen: function (point) { return formatStamp(point.t); },
+        fetchHistory: function (getJson) {
+          var url = "https://api.coingecko.com/api/v3/coins/theta-token/market_chart?vs_currency=cad&days=7";
+          return getJson(url, 12000).then(function (data) {
+            var rows = data && data.prices;
+            if (!Array.isArray(rows)) throw new Error("Unexpected THETA history");
+            var cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+            var byTime = {};
+            rows.forEach(function (row) {
+              if (!row || row.length < 2) return;
+              var t = Number(row[0]);
+              var rate = Number(row[1]);
+              if (!Number.isFinite(t) || !Number.isFinite(rate) || rate <= 0 || rate > 1000) return;
+              if (t < cutoff) return;
+              byTime[t] = rate;
+            });
+            return Object.keys(byTime).map(Number).sort(function (a, b) { return a - b; }).map(function (t) {
+              return {
+                t: t,
+                date: new Date(t).toISOString().slice(0, 10),
+                rate: byTime[t]
+              };
+            });
+          });
+        },
+        fetchSpot: function (getJson) {
+          var url = "https://api.coingecko.com/api/v3/simple/price?ids=theta-token&vs_currencies=cad&include_last_updated_at=true";
+          return getJson(url, 8000).then(function (data) {
+            var row = data && data["theta-token"];
+            var price = Number(row && row.cad);
+            if (!Number.isFinite(price) || price <= 0 || price > 1000) throw new Error("Bad THETA spot");
             var updatedAt = "";
             if (row.last_updated_at) updatedAt = new Date(row.last_updated_at * 1000).toISOString();
             return { price: price, updatedAt: updatedAt };
